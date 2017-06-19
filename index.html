@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>datepanel</title>
+    <script src="https://apps.bdimg.com/libs/jquery/2.1.4/jquery.min.js"></script>
+    <script src="ajax.js"></script>
+    <style>
+    * {
+        padding: 0;
+        margin: 0;
+    }
+    
+    .date-container {
+        margin-left: 100px;
+        margin-top: 50px;
+        width: 375px;
+        height: 60px;
+        background: red;
+        font-size: 11px;
+    }
+    
+    .date-model {
+        position: relative;
+        overflow: hidden;
+        width: 300px;
+        height: 60px;
+        display: inline-block;
+        background: green;
+    }
+    
+    .date-panel {
+        position: absolute;
+        width: 540px;
+        transition-property: left;
+        -moz-transition-property: left;
+        /* Firefox 4 */
+        -webkit-transition-property: left;
+        /* Safari and Chrome */
+        -o-transition-property: left;
+        /* Opera */
+        -webkit-transition-duration: 5s;
+        transition-timing-function: ease-out;
+    }
+    
+    .date-ele,
+    .more-date {
+        margin-right: 1px;
+        width: 60px;
+        height: 60px;
+        background: pink;
+        display: inline-block;
+        text-align: center;
+    }
+    
+    .date-ele.active {
+        background: white;
+    }
+    
+    .more-date {
+        overflow: hidden;
+    }
+    
+    .d-text {
+        margin: 1px;
+        height: 16px;
+    }
+    </style>
+</head>
+
+<body>
+    <div class="date-container">
+        <div class="date-model">
+            <div class="date-panel" style="left:0">
+            </div>
+        </div>
+        <div class="more-date">
+            更多日期
+        </div>
+    </div>
+    <script>
+    //http://localhost/datepanel/index.html
+    var dData = {};
+    var goFTrend = {};
+    var showArr = []; //展示数据
+    var arrLen = 9; //展示数组长度
+    var startDate = new Date();
+    startDate = formatDate(startDate); //数据起始时间
+    var startArr = dateToArr(startDate); //数据起始时间数组
+    var dLen = 359; //数据长度
+    var curIdx = 0; //记录当前位置
+    var preIdx = 0; //记录之前位置
+    var activeIdx = 0; //active的位置
+    var stepPx = 60; //没步滑动距离px
+
+    var datePanel;
+
+
+
+    function dateToArr(date) {
+        //return arr [year,month,day,week]
+        //date to arr
+        return [toKey(date.getFullYear(), addZero(fixMonth(date.getMonth())), addZero(date.getDate())),
+            date.getFullYear(),
+            date.getMonth(),
+            date.getDate(),
+            date.getDay()
+        ]
+    }
+
+    function toKey() {
+        // join with "-"
+        return [].join.call(arguments, "-");;
+    }
+
+    function arrToDate(arr) {
+        //arr to date
+        return new Date(arr[1], arr[2], arr[3]);
+    }
+
+    function formatDate(date) {
+        //delete the redundant date
+        //Thu Jun 15 2017 10:47:07 GMT+0800 (CST)
+        //index.html:56 Thu Jun 15 2017 00:00:00 GMT+0800 (CST) 
+        return arrToDate(dateToArr(date));
+    }
+
+    function toWeek(day) {
+        var weekday = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+        return weekday[day];
+    }
+
+    function fixMonth(month) {
+        //add one
+        return parseInt(month) + 1;
+    }
+
+    function addZero(num) {
+        //小于10补0
+        if (parseInt(num) < 10) {
+            return "0" + num;
+        }
+        return num;
+    }
+
+    function slideLeft(step) {
+
+        console.log(datePanel.style.left);
+
+        datePanel.style.left = parseInt(datePanel.style.left) + step * stepPx + "px";
+    }
+
+    // 将HTML转换为节点
+    function html2node(str) {
+        var container = document.createElement('div');
+        container.innerHTML = str;
+        return container.children[0];
+    }
+
+    function getArr(curentArr) {
+        //sDate开始时间  eDate结束时间
+        var re = [];
+        var curentDate = arrToDate(curentArr);
+        var sDate = new Date();
+        // 判断开头
+        if (curentDate.getDate() < startDate.getDate() + 2) {
+            sDate = startDate;
+        } else {
+            sDate.setDate(curentDate.getDate() - 2);
+        }
+        var date = new Date();
+        for (var i = 0; i < arrLen; ++i) {
+            date.setDate(sDate.getDate() + i);
+            re.push(dateToArr(date));
+        }
+        console.log(re);
+        return re;
+    }
+
+    function registEventListener() {
+        //注册事件
+        dateEvent();
+    }
+
+    function dateEvent() {
+        //点击事件
+        var dateEles = document.getElementsByClassName("date-ele");
+        datePanel.addEventListener('click', function(e) {
+            preIdx = curIdx;
+            var target = e.target;
+            curIdx = [].indexOf.call(dateEles, target.parentNode);
+            console.log(curIdx);
+
+            if (curIdx == preIdx) return;
+
+            dateEles[preIdx].className = "date-ele";
+            dateEles[curIdx].className = "date-ele active";
+            slideLeft(preIdx - curIdx);
+            showArr = getArr(showArr[curIdx]);
+            update();
+        });
+
+    }
+
+    function init() {
+
+        //获取全部数据
+        ajax.get("//localhost/h5/flight/pricetrend?startCity=%E5%8C%97%E4%BA%AC&destCity=%E4%B8%8A%E6%B5%B7&checkType=ajax&priceType=2&_=1497433573332", function(data, status) {
+            dData = JSON.parse(data);
+            goFTrend = dData.priceTrendDataMap.goFTrend;
+            console.log(goFTrend);
+            showArr = getArr(startArr);
+            datePanel = document.getElementsByClassName("date-panel")[0];
+            var templete = '<div class="date-ele"><p class="d-text"></p><p class="d-text"></p><p class="d-text"></p></div>';
+            for (var i = 0; i < arrLen; ++i) {
+                datePanel.appendChild(html2node('<div class="date-ele"><div class="d-text"></div><div class="d-text"></div><div class="d-text"></div></div>'));
+            }
+            registEventListener();
+            update();
+        });
+    }
+
+    function update() {
+        var dText = document.getElementsByClassName("d-text");
+        for (var i = 0; i < arrLen; ++i) {
+            dText[3 * i].innerText = fixMonth(showArr[i][2]) + "-" + showArr[i][3];
+            dText[3 * i + 1].innerText = toWeek(showArr[i][4]);
+            dText[3 * i + 2].innerText = goFTrend[showArr[i][0]].price;
+        }
+    }
+
+    init();
+    </script>
+</body>
+
+</html>

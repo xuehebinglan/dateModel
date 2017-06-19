@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>datepanel</title>
+    <script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
+    <script src="ajax.js"></script>
+    <style>
+        * {
+            padding: 0;
+            margin: 0;
+        }
+
+        .date-container {
+            margin-left: 200px;
+            margin-top: 50px;
+            width: 375px;
+            height: 60px;
+            background: red;
+            font-size: 11px;
+        }
+
+        .date-model {
+            /*overflow: hidden;*/
+            width: 300px;
+            height: 60px;
+            display: inline-block;
+            background: green;
+            border:1px solid black;
+        }
+
+        .date-panel {
+            position: relative;
+            width: 540px;
+            transition-property: left;
+            -moz-transition-property: left;
+            /* Firefox 4 */
+            -webkit-transition-property: left;
+            /* Safari and Chrome */
+            -o-transition-property: left;
+            /* Opera */
+            -webkit-transition-duration: 5s;
+            transition-timing-function: ease-out;
+        }
+
+        .date-ele {
+            position: absolute;
+        }
+
+        .date-ele,
+        .more-date {
+
+            margin-right: 1px;
+            width: 60px;
+            height: 60px;
+            background: pink;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .date-ele.active {
+            background: white;
+        }
+
+        .more-date {
+            overflow: hidden;
+        }
+
+        .d-text {
+            margin: 1px;
+            height: 16px;
+        }
+    </style>
+</head>
+
+<body>
+<div class="date-container">
+    <div class="date-model">
+        <div class="date-panel" style="left:0">
+        </div>
+    </div>
+    <div class="more-date">
+        更多日期
+    </div>
+</div>
+<script>
+    //http://localhost/datepanel/new.html
+    var dData = {};
+    var goFTrend = {};
+    var showDataArr = []; //展示数据，{key:,month:,year:,day:,week:}
+    var eleLeft = []; //展示的left
+    var eleLeft1 = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+    var eleLeft2 = [-2, -1, 0, 1, 2, 3, 4, 5, 6];
+    var eleLeft3 = [7, -1, 0, 1, 2, 3, 4, 5, 6];
+    var arrLen = 9; //展示数组长度
+    var startDate = new Date();
+    startDate = formatDate(startDate); //数据起始时间
+    var startObj = dateToObj(startDate); //数据起始时间数组
+    var dLen = 359; //数据长度
+    var curIdx = 0; //记录当前位置
+    var preIdx = 0; //记录之前位置
+    var middleIdx = 2; //窗口中间的位置，默认为2，大部分为4，开头可能为3， 结尾可能为6，5
+    var stepPx = 60; //没步滑动距离px
+    var parentLeft = 0;
+    var status = 0;
+
+    var datePanel;
+    var dateEles;
+    var dText;
+
+
+    function dateToObj(date) {
+        //return obj {key:,month:,year:,day:,week:}
+        //date to obj
+        return {
+            key:toKey(date.getFullYear(), addZero(fixMonth(date.getMonth())), addZero(date.getDate())),
+            year:date.getFullYear(),
+            month:date.getMonth(),
+            day:date.getDate(),
+            week:date.getDay()
+        }
+    }
+
+    function toKey() {
+        // join with "-"
+        return [].join.call(arguments, "-");
+        ;
+    }
+
+    function objToDate(obj) {
+        //arr to date
+        return new Date(obj.year, obj.month, obj.day);
+    }
+
+    function formatDate(date) {
+        //delete the redundant date
+        //Thu Jun 15 2017 10:47:07 GMT+0800 (CST)
+        //index.html:56 Thu Jun 15 2017 00:00:00 GMT+0800 (CST) 
+        return objToDate(dateToObj(date));
+    }
+
+    function toWeek(day) {
+        var weekday = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+        return weekday[day];
+    }
+
+    function fixMonth(month) {
+        //add one
+        return parseInt(month) + 1;
+    }
+
+    function addZero(num) {
+        //小于10补0
+        if (parseInt(num) < 10) {
+            return "0" + num;
+        }
+        return num;
+    }
+
+    // 将HTML转换为节点
+    function html2node(str) {
+        var container = document.createElement('div');
+        container.innerHTML = str;
+        return container.children[0];
+    }
+
+
+
+
+
+
+
+    function getInitArr(curentArr) {
+        //sDate开始时间  eDate结束时间
+        var re = [];
+        var curentDate = objToDate(curentArr);
+        var sDate = new Date();
+        // 判断开头
+        if (curentDate.getDate() <= startDate.getDate() + 4) {
+            sDate = startDate;
+        } else {
+            sDate.setDate(curentDate.getDate() - 4);
+        }
+        var date = new Date();
+        for (var i = 0; i < arrLen; ++i) {
+            date.setDate(sDate.getDate() + i);
+            re.push(dateToObj(date));
+        }
+        console.log(re);
+        return re;
+    }
+
+
+    function registEventListener() {
+        //注册事件
+        dateEvent();
+    }
+
+    function dateEvent() {
+        //点击事件
+        datePanel.addEventListener('click', function (e) {
+            preIdx = curIdx;
+            var target = e.target;
+            curIdx = [].indexOf.call(dateEles, target.parentNode);
+            console.log(curIdx);
+
+            if (curIdx == preIdx || curIdx == -1) return;
+            console.log(dateEles);
+            console.log("pre:"+preIdx);
+            console.log("cur:"+curIdx);
+
+            dateEles[preIdx].className = "date-ele";
+            dateEles[curIdx].className = "date-ele active";
+            slideLeft(preIdx - curIdx);
+//            showDataArr = getInitArr(showDataArr[curIdx]);
+            getDataArr();
+            update();
+        });
+
+    }
+
+
+    // 只用来渲染平移，数据， 具体需要改变eleLeft,parentLeft，showDataArr
+    function renderDate() {
+        // 只用来渲染
+        // 初始化
+        if(eleLeft.length == 0) {
+            if (status == 0) {
+                eleLeft = eleLeft1;
+            } else {
+                eleLeft = eleLeft2;
+            }
+        }
+
+        //平移相关
+        for (var i = 0; i < dateEles.length; ++i) {
+            dateEles[i].style.transform =
+                "translateX(" + eleLeft[i] * 100 + "%) translateZ(0)";
+        }
+
+        datePanel.style.transform =
+            "translateX(" + -parentLeft * 20 + "%) translateZ(0)";
+
+        //数据相关
+        for (var i = 0; i < arrLen; ++i) {
+            dText[3 * i].innerText = fixMonth(showDataArr[i].month) + "-" + showDataArr[i].day;
+            dText[3 * i + 1].innerText = toWeek(showDataArr[i].week);
+            dText[3 * i + 2].innerText = goFTrend[showDataArr[i].key].price;
+        }
+
+    }
+
+    // 更新数据，显示数据和显示数据的left
+    function updateDate(step) {
+
+    }
+
+    function updateDateOneStep(direction) {
+        //direction 1,-1,左，右
+        var day = objToDate(showDataArr[0]).getDate() + 5;
+        var newDate = showDataArr[0];
+        var idx = direcition == 1 ? 0 : (arrLen - 1);
+        if (direction == 1) {
+            newDate.setDate(objToDate(showDataArr[0]).getDate() + 8);
+            showDataArr[0] = dateToObj(newDate);
+            eleLeft[0] += 9；
+        } else {
+            newDate.setDate(objToDate(showDataArr[8]).getDate() - 8);
+            showDataArr[8] = dateToObj(newDate);
+        }
+
+
+    }
+
+    //更新left
+    function updateParentLeft() {
+
+    }
+
+
+    function update() {
+
+        updateDate();
+        renderDate();
+    }
+
+
+
+
+
+    function init() {
+
+        //获取全部数据
+        ajax.get("//localhost/h5/flight/pricetrend?startCity=%E5%8C%97%E4%BA%AC&destCity=%E4%B8%8A%E6%B5%B7&checkType=ajax&priceType=2&_=1497433573332", function (data, status) {
+            dData = JSON.parse(data);
+            goFTrend = dData.priceTrendDataMap.goFTrend;
+            console.log(goFTrend);
+            showDataArr = getInitArr(startObj);
+
+            datePanel = document.getElementsByClassName("date-panel")[0];
+
+            var templete = '<div class="date-ele"><p class="d-text"></p><p class="d-text"></p><p class="d-text"></p></div>';
+            for (var i = 0; i < arrLen; ++i) {
+                datePanel.appendChild(html2node('<div class="date-ele"><div class="d-text"></div><div class="d-text"></div><div class="d-text"></div></div>'));
+            }
+
+
+            dateEles = document.getElementsByClassName("date-ele");
+            dText = document.getElementsByClassName("d-text");
+            console.log(dateEles[0])
+            dateEles[0].className = "date-ele active";
+
+
+            registEventListener();
+            update();
+        });
+    }
+
+    init();
+</script>
+</body>
+
+</html>
